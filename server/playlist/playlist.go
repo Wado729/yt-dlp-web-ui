@@ -98,5 +98,7 @@ func PlaylistDetect(req internal.DownloadRequest, mq *queue.MessageQueue, db *kv
 	mq.Publish(d)
 	slog.Info("sending new process to message queue", slog.String("url", d.GetUrl()))
 
-	return cmd.Wait()
+	// cmd.Wait() was already called above; calling it again always
+	// returned "exec: Wait was already called" to the client.
+	return nil
 }

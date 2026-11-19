@@ -36,6 +36,9 @@ WORKDIR /app
 
 COPY --from=build /usr/src/yt-dlp-webui/yt-dlp-webui /app
 
+# Site-specific yt-dlp extractor plugins (picked up from yt-dlp's system plugin dir)
+COPY yt-dlp-plugins /etc/yt-dlp/plugins
+
 ENV APP_PATHS_DOWNLOAD_PATH="/downloads"
 ENV APP_PATHS_LOCAL_DATABASE_PATH="/config"
 ENV APP_PATHS_JS_RUNTIME_PATH="deno:/usr/bin/deno"
