@@ -82,7 +82,13 @@ func (m *MessageQueue) downloadWorker(workerId int) {
 			m.metadataQueue <- p
 			slog.Info("queued for metadata", slog.String("id", p.GetId()))
 
-			p.Start()
+			if err := p.Start(); err != nil {
+				slog.Error("download ended with error",
+					slog.Int("worker", workerId),
+					slog.String("id", p.GetId()),
+					slog.String("err", err.Error()),
+				)
+			}
 		}
 	}
 }
