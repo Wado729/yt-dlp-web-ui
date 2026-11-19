@@ -110,7 +110,14 @@ const DownloadDialog: FC<Props> = ({ open, onClose, onDownloadStart }) => {
       if (pickedAudioFormat !== '') codes.push(pickedAudioFormat)
       if (pickedBestFormat !== '') codes.push(pickedBestFormat)
 
-      const downloadTemplate = `${customArgs} ${cookies}`
+      // customArgs is persisted in localStorage. Only send it when the user can
+      // see where it comes from (custom args enabled, or a template picker shown);
+      // otherwise a stale value (e.g. an old "default" template) is sent silently.
+      const activeArgs = settings.enableCustomArgs || savedTemplates.length > 0
+        ? customArgs
+        : ''
+
+      const downloadTemplate = `${activeArgs} ${cookies}`
         .replace(/  +/g, ' ')
         .trim()
 

@@ -120,7 +120,8 @@ func argsSanitizer(params []string) ([]string, error) {
 			out = append(out, p)
 			continue
 		}
-		if !allowedFlags[p] {
+		// accept the --flag=value spelling of whitelisted flags
+		if !allowedFlags[strings.SplitN(p, "=", 2)[0]] {
 			return nil, fmt.Errorf("param %s not allowed", p)
 		}
 		out = append(out, p)

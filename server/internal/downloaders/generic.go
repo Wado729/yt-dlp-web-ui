@@ -60,12 +60,26 @@ func NewGenericDownload(url string, params []string) Downloader {
 	return g
 }
 
+// fail marks a download that could not be started as errored, so the UI
+// shows it instead of leaving it pending at 0% forever.
+func (g *GenericDownloader) fail(err error) error {
+	slog.Error("download rejected",
+		slog.String("id", g.Id),
+		slog.String("url", g.URL),
+		slog.String("err", err.Error()),
+	)
+	g.progress.Status = internal.StatusErrored
+	g.SetPending(false)
+	g.Complete()
+	return err
+}
+
 func (g *GenericDownloader) Start() error {
 	g.SetPending(true)
 
 	whiltelistedParams, err := argsSanitizer(g.Params)
 	if err != nil {
-		return err
+		return g.fail(err)
 	}
 
 	g.Params = whiltelistedParams
@@ -111,10 +125,10 @@ func (g *GenericDownloader) Start() error {
 
 		rel, err := filepath.Rel(config.Instance().Paths.DownloadPath, outputPath)
 		if err != nil {
-			return err
+			return g.fail(err)
 		}
 		if strings.HasPrefix(rel, "..") {
-			return errors.New(ErrIsNotSubPath)
+			return g.fail(errors.New(ErrIsNotSubPath))
 		}
 
 		g.Params = append(g.Params, "-o")
