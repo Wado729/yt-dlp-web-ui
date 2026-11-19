@@ -1,11 +1,17 @@
 name: Docker
+
+# Builds the fork's image and publishes it to GHCR only:
+#   ghcr.io/wado729/yt-dlp-web-ui:{latest,v4,sha-<short>,yt-dlp-<version>}
+# Every build pins the newest yt-dlp release from PyPI (also tagged yt-dlp-<version>);
+# the weekly run picks up new yt-dlp releases.
 on:
-  release:
-    types: [published]
   push:
     branches: [ master ]
+  release:
+    types: [ published ]
   schedule:
-    - cron : '0 1 * * 0'
+    - cron: '0 1 * * 0'
+  workflow_dispatch:
 
 jobs:
   publish:
@@ -13,38 +19,23 @@ jobs:
     permissions:
       contents: read
       packages: write
-      # This is used to complete the identity challenge
-      # with sigstore/fulcio when running outside of PRs.
-      id-token: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # https://github.com/sigstore/cosign-installer
-      - name: Install cosign
-        # v3.1.2
-        uses: sigstore/cosign-installer
-        with:
-          cosign-release: 'v1.13.6'
+      - name: Resolve latest yt-dlp release
+        id: ytdlp
+        run: |
+          v=$(curl -fsSL https://pypi.org/pypi/yt-dlp/json | jq -r .info.version)
+          test -n "$v" && test "$v" != null
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "Building with yt-dlp $v" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Set up QEMU for ARM emulation
-        # v2.2.0
-        uses: docker/setup-qemu-action
-        with:
-          platforms: all
       - name: Set up Docker Buildx
-        # 2.10.0
-        uses: docker/setup-buildx-action
+        uses: docker/setup-buildx-action@v3
 
-      - name: Login to Docker Hub
-        # 2.2.0
-        uses: docker/login-action
-        with:
-          username: ${{ secrets.DOCKER_HUB_USERNAME }}
-          password: ${{ secrets.DOCKER_HUB_PASSWORD }}
       - name: Login to GHCR
-        # 2.2.0
-        uses: docker/login-action
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -52,31 +43,24 @@ jobs:
 
       - name: Generate Docker metadata
         id: meta
-        # v4.6.0
-        uses: docker/metadata-action
+        uses: docker/metadata-action@v5
         with:
-          images: |
-           ghcr.io/${{ github.repository }}
-           docker.io/${{ secrets.DOCKER_HUB_USERNAME }}/yt-dlp-webui
+          images: ghcr.io/${{ github.repository }}
           tags: |
+            type=raw,value=latest
             type=raw,value=v4
+            type=sha
+            type=raw,value=yt-dlp-${{ steps.ytdlp.outputs.version }}
 
       - name: Build and push Docker image
-        id: build-and-push
-        # v4.2.1
-        uses: docker/build-push-action
+        uses: docker/build-push-action@v6
         with:
           context: .
           push: true
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels}}
-
-      - name: Sign the published Docker image
-        env:
-          COSIGN_EXPERIMENTAL: "true"
-        # This step uses the identity token to provision an ephemeral certificate
-        # against the sigstore community Fulcio instance.
-        run: |
-          cosign sign ghcr.io/${{ github.repository }}@${{ steps.build-and-push.outputs.digest }}
-          cosign sign docker.io/${{ secrets.DOCKER_HUB_USERNAME }}/yt-dlp-webui@${{ steps.build-and-push.outputs.digest }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            YTDLP_VERSION=${{ steps.ytdlp.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
