@@ -26,9 +26,15 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o yt-dlp-webui
 
 FROM python:alpine
 
+# CI passes the newest PyPI release; this default keeps local builds reproducible.
+# Bumping the version also busts the build cache for this layer.
+ARG YTDLP_VERSION=2026.10.26
+
 RUN apk update && \
     apk add ffmpeg ca-certificates curl wget gnutls deno --no-cache && \
-    pip install "yt-dlp[default,curl-cffi,mutagen,pycryptodomex,phantomjs,secretstorage]"
+    pip install --no-cache-dir "yt-dlp[default,curl-cffi,secretstorage]${YTDLP_VERSION:+==${YTDLP_VERSION}}"
+
+LABEL org.opencontainers.image.yt-dlp-version="${YTDLP_VERSION}"
 
 VOLUME /downloads /config
 

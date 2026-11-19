@@ -1,8 +1,9 @@
 name: Docker
 
 # Builds the fork's image and publishes it to GHCR only:
-#   ghcr.io/wado729/yt-dlp-web-ui:{latest,v4,sha-<short>}
-# The weekly run rebuilds so the image picks up the newest yt-dlp from PyPI.
+#   ghcr.io/wado729/yt-dlp-web-ui:{latest,v4,sha-<short>,yt-dlp-<version>}
+# Every build pins the newest yt-dlp release from PyPI (also tagged yt-dlp-<version>);
+# the weekly run picks up new yt-dlp releases.
 on:
   push:
     branches: [ master ]
@@ -21,6 +22,14 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Resolve latest yt-dlp release
+        id: ytdlp
+        run: |
+          v=$(curl -fsSL https://pypi.org/pypi/yt-dlp/json | jq -r .info.version)
+          test -n "$v" && test "$v" != null
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "Building with yt-dlp $v" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -41,6 +50,7 @@ jobs:
             type=raw,value=latest
             type=raw,value=v4
             type=sha
+            type=raw,value=yt-dlp-${{ steps.ytdlp.outputs.version }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
@@ -50,5 +60,7 @@ jobs:
           platforms: linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            YTDLP_VERSION=${{ steps.ytdlp.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
