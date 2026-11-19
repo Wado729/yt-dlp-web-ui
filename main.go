@@ -43,6 +43,9 @@ func main() {
 	v.SetDefault("paths.download_path", ".")
 	v.SetDefault("paths.downloader_path", "yt-dlp")
 	v.SetDefault("paths.local_database_path", ".")
+	// viper only applies env overrides to keys it already knows, so this
+	// default is what lets APP_PATHS_JS_RUNTIME_PATH (set in the Dockerfile) work.
+	v.SetDefault("paths.js_runtime_path", "")
 	v.SetDefault("logging.log_path", "yt-dlp-webui.log")
 	v.SetDefault("logging.enable_file_logging", false)
 	v.SetDefault("authentication.require_auth", false)

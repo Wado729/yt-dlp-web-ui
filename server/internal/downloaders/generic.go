@@ -96,10 +96,13 @@ func (g *GenericDownloader) Start() error {
 		templateReplacer.Replace(downloadTemplate),
 		"--progress-template",
 		templateReplacer.Replace(postprocessTemplate),
-		"--js-runtimes",
-		config.Instance().Paths.JSRuntimePath,
-		"--remote-components",
-		"ejs:github",
+	}
+
+	if jsRuntime := config.Instance().Paths.JSRuntimePath; jsRuntime != "" {
+		baseParams = append(baseParams,
+			"--js-runtimes", jsRuntime,
+			"--remote-components", "ejs:github",
+		)
 	}
 
 	// if user asked to manually override the output path...
